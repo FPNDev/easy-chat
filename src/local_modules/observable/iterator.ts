@@ -1,10 +1,10 @@
 import { type BaseObservable } from './observable';
 
 function extendObservableWithIterator(
-  ObservableClass: new <T>() => BaseObservable<T>
+  ObservableClass: new <T, D>() => BaseObservable<T, D>
 ) {
-  return class IteratorObservable<T> extends ObservableClass<T> {
-    private sendToIterators?: (iteratorRes: IteratorResult<T>) => void;
+  return class IteratorObservable<T, D> extends ObservableClass<T, D> {
+    private sendToIterators?: (iteratorRes: IteratorResult<T, D>) => void;
 
     notify(data: T): void {
       super.notify(data);
@@ -13,10 +13,10 @@ function extendObservableWithIterator(
       }
     }
 
-    done(): void {
-      super.done();
+    done(doneValue: D): void {
+      super.done(doneValue);
       if (this.sendToIterators) {
-        this.sendToIterators({ done: true, value: undefined });
+        this.sendToIterators({ done: true, value: doneValue });
       }
     }
 
