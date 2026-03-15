@@ -73,7 +73,7 @@ async function clear(chatId: string) {
   const objectStore = await getObjectStore();
   await dbRequestToPromise(objectStore.clear());
 
-  const currentMessages = await chatMessagesMap$.get(chatId)!;
+  const currentMessages = await chatMessagesMap$.get(chatId);
   if (currentMessages) {
     currentMessages.length = 0;
   }

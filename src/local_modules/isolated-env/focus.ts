@@ -16,6 +16,8 @@ function isolateViewOnFocus(node: HTMLElement) {
     },
     { capture: true },
   );
+  
+  return focusCapture;
 }
 
 export { isolateViewOnFocus };

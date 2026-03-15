@@ -23,4 +23,8 @@ function disposeEnv(env: symbol) {
   }
 }
 
-export { isolateEnv, getIsolatedEnv, disposeEnv };
+function isEnv(env: symbol) {
+  return envStack.includes(env);
+}
+
+export { isolateEnv, getIsolatedEnv, disposeEnv, isEnv };

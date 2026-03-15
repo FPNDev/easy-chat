@@ -21,33 +21,35 @@ function processChat(messages: ChatMessage[], abort$: Observable<void>) {
     cancelToken: canceller.token,
   })
     .then((res) => res.data as ReadableStream)
-    .then(async (res) => {
-      const reader = res.getReader();
-      const decoder = new TextDecoder('UTF-8');
+    .then(
+      async (res) => {
+        const reader = res.getReader();
+        const decoder = new TextDecoder('UTF-8');
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
-
-        const decoded = decoder.decode(value);
-        for (const streamPart of decoded.split('\n')) {
-          if (!streamPart.startsWith('data:')) {
-            continue;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
           }
 
-          try {
-            const message = JSON.parse(streamPart.replace('data: ', ''));
-            messageChunks$.notify(message.choices[0]);
-          } catch {
-            continue;
+          const decoded = decoder.decode(value);
+          for (const streamPart of decoded.split('\n')) {
+            if (!streamPart.startsWith('data:')) {
+              continue;
+            }
+
+            try {
+              const message = JSON.parse(streamPart.replace('data: ', ''));
+              messageChunks$.notify(message.choices[0]);
+            } catch {
+              continue;
+            }
           }
         }
+
+        messageChunks$.done();
       }
-
-      messageChunks$.done();
-    }).catch((e) => {
+    ).catch((e) => {
       messageChunks$.notify(e);
     });
 
