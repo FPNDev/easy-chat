@@ -1,4 +1,6 @@
-const MAX_SLOTS = +import.meta.env.VITE_MAX_SLOTS || 4;
+import network from './network';
+
+const MAX_SLOTS = +import.meta.env.VITE_MAX_SLOTS || Infinity;
 const HEARTBEAT_SEND_INTERVAL = 2000;
 const HEARTBEAT_RECEIVE_INTERVAL = 5000;
 
@@ -87,7 +89,17 @@ async function ensureSlot(chatId: string) {
 
   const idx = openChats.indexOf(chatId);
   if (!~idx) {
-    const slotIdx = findFreeSlot();
+    let slotIdx = findFreeSlot();
+
+    while (slotIdx !== null) {
+      await eraseSlotCache(slotIdx);
+      const nextSlotIdx = findFreeSlot();
+      if (nextSlotIdx === slotIdx) {
+        break;
+      }
+      slotIdx = nextSlotIdx;
+    }
+    
     if (slotIdx === null) {
       return;
     }
@@ -127,6 +139,15 @@ function freeSlot(chatId: string) {
     openChats[globalIdx] = null;
   }
   clearInterval(sendHeartBeatIntervals[chatId]);
+}
+
+function eraseSlotCache(slotId: number) {
+  return network(`slots/${slotId}`, {
+    method: 'POST',
+    data: {
+      action: 'erase',
+    },
+  });
 }
 
 export { ensureSlot, freeSlot };
