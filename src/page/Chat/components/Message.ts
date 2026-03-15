@@ -1,15 +1,20 @@
 import { Component } from '../../../local_modules/component/component';
 import { useStore } from '../../../local_modules/store';
+import { poolWithEvents } from '../../../local_modules/subscription/events';
 import { html } from '../../../local_modules/util/html';
 import type { ChatMessage } from '../../../services/agent/types';
 import chatHistory from '../../../services/db/chat-history';
+import { transformNewlinesForMarkdown } from '../../../util/chat';
 import { dotLoaderFactory } from '../../../util/dot-loader';
 import markdownConverter from '../../../util/markdown-converter';
 import { ChatEventsStore, ChatStateStore } from '../stores';
 import classes from '../style.module.scss';
 import type { ChatMessageRender } from '../types';
+import { InstructionInput } from './InstructionInput';
 
 export class Message extends Component<HTMLElement> {
+  private pool = poolWithEvents();
+
   private events = useStore(this, ChatEventsStore);
   private state = useStore(this, ChatStateStore);
 
@@ -19,6 +24,8 @@ export class Message extends Component<HTMLElement> {
 
   private resendBtn?: Node;
   private isLast = false;
+
+  private editModeNode?: HTMLElement;
 
   get id() {
     return this._id;
@@ -50,6 +57,7 @@ export class Message extends Component<HTMLElement> {
 
     return chatHistory
       .put({
+        ...(this._id ? { id: this._id } : null),
         chat_id: this.state.chatId$.value!,
         message: this.message,
       })
@@ -63,6 +71,15 @@ export class Message extends Component<HTMLElement> {
   update(newMessage: Partial<Omit<ChatMessageRender, 'role'>>) {
     Object.assign(this.message, newMessage);
     this.updateContent();
+  }
+
+  async delete() {
+    this.destroy();
+
+    if (this._id) {
+      this.events.delete$.notify(this._id);
+      return chatHistory.delete(this._id, this.state.chatId$.value!);
+    }
   }
 
   view(): HTMLElement {
@@ -101,8 +118,9 @@ export class Message extends Component<HTMLElement> {
     const loaderActive = this.loader.node.isConnected;
 
     if (contentToRender) {
-      this.contentElement.innerHTML =
-        markdownConverter.makeHtml(contentToRender);
+      this.contentElement.innerHTML = markdownConverter.makeHtml(
+        transformNewlinesForMarkdown(contentToRender),
+      );
       if (loaderActive) {
         this.loader.stop();
       }
@@ -134,15 +152,6 @@ export class Message extends Component<HTMLElement> {
     return this.actionsElement;
   }
 
-  private delete() {
-    this.destroy();
-
-    if (this._id) {
-      this.events.delete$.notify(this._id);
-      chatHistory.delete(this._id, this.state.chatId$.value!);
-    }
-  }
-
   private renderResend() {
     if (!this.resendBtn || this.message.role !== 'user') {
       return;
@@ -161,17 +170,91 @@ export class Message extends Component<HTMLElement> {
     this.resendBtn = newResend;
   }
 
+  private startEditing() {
+    if (this.editModeNode) {
+      return;
+    }
+
+    const editTextArea = new InstructionInput(
+      this,
+      this.message.content,
+      'Type your message...',
+      classes.messageInput,
+    );
+    const saveBtn = html`<button>Save</button>` as HTMLButtonElement;
+    const cancelBtn = html`<button>Cancel</button>` as HTMLButtonElement;
+
+    const editLayout = html`<div>
+      ${editTextArea}
+      <div class=${classes.actions}>${saveBtn} ${cancelBtn}</div>
+    </div>` as HTMLElement;
+
+    saveBtn.onclick = () => {
+      if (!editTextArea.value) {
+        return;
+      }
+
+      this.events.cancelEdit$.notify();
+      this.update({
+        content: editTextArea.value,
+      });
+      this.store().then(() => {
+        this.events.edit$.notify(this._id!);
+      });
+    };
+
+    cancelBtn.onclick = () => {
+      this.events.cancelEdit$.notify();
+    };
+
+    const unsubscribeCancel = this.pool.subscribe(
+      this.events.cancelEdit$,
+      () => {
+        unsubscribeCancel();
+
+        this.actionsElement!.style.display = '';
+        this.editModeNode?.parentElement?.replaceChild(
+          this.contentElement!,
+          this.editModeNode,
+        );
+        this.editModeNode = undefined;
+      },
+    );
+
+    this.editModeNode = editLayout;
+    this.actionsElement!.style.display = 'none';
+    this.contentElement!.parentElement?.replaceChild(
+      editLayout,
+      this.contentElement!,
+    );
+  }
+
   private renderActions() {
     if (!this.actionsElement) {
       return;
     }
 
+    const buttons = [];
+
     const deleteBtn = html`<a href="#">Delete</a>` as HTMLElement;
     deleteBtn.onclick = () => this.delete();
+    buttons.push(deleteBtn);
 
-    this.resendBtn = html`<!---->`;
-    this.renderResend();
+    if (this.message.role !== 'user') {
+      this.resendBtn = html`<!---->`;
+      this.renderResend();
+      buttons.push(this.resendBtn);
+    }
 
-    this.actionsElement.replaceChildren(deleteBtn, this.resendBtn);
+    if (this.message.role !== 'assistant') {
+      const editBtn = html`<a href="#">Edit</a>` as HTMLAnchorElement;
+      editBtn.onclick = () => {
+        this.events.cancelEdit$.notify();
+        this.startEditing();
+      };
+      buttons.push(editBtn);
+    }
+
+    this.actionsElement.replaceChildren(...buttons);
   }
 }

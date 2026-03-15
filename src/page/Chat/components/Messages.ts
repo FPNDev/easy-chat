@@ -21,7 +21,6 @@ export class Messages extends Component<HTMLElement> {
     super(parentComponent);
 
     this.ensureView();
-    this.loadCurrentChat();
 
     let lastChatId = this.state.chatId$.value;
     this.pool.subscribe(this.state.chatId$, async (newId) => {
@@ -43,7 +42,7 @@ export class Messages extends Component<HTMLElement> {
       this.state.messageText$.notify('');
       const messageComponent = this.renderMessage(
         new Message(this, {
-          content: message.replace(/\n{1,1}/g, '\n\n'),
+          content: message,
           reasoning_content: '',
           role: role,
         }),
@@ -73,9 +72,26 @@ export class Messages extends Component<HTMLElement> {
       this.markLastMessage();
     });
 
+    this.pool.subscribe(this.events.edit$, (entryId) => {
+      const removals: Promise<void>[] = [];
+      const renderedMessagesArr = Array.from(this.renderedMessages.values());
+      for (let i = renderedMessagesArr.length - 1; i >= 0; --i) {
+        const renderedMessage = renderedMessagesArr[i];
+        if (renderedMessage.id === entryId) {
+          break;
+        }
+
+        removals.push(renderedMessage.delete());
+      }
+
+      Promise.all(removals).then(() => this.sendToAssistant());
+    });
+
     this.pool.subscribe(this.events.sendToAssistant$, () =>
       this.sendToAssistant(),
     );
+
+    this.loadCurrentChat();
   }
 
   clearChat() {
@@ -162,22 +178,17 @@ export class Messages extends Component<HTMLElement> {
   }
 
   private async sendToAssistant() {
+    const chatEntries = await chatHistory.getChat(this.state.chatId$.value!);
+    const lastEntry = chatEntries.at(-1);
+    if (!lastEntry || !lastEntry.id || lastEntry.message.role !== 'user') {
+      return;
+    }
+
     this.state.loading$.notify(true);
 
-    const chatEntries = await chatHistory.getChat(this.state.chatId$.value!);
-    const lastEntryId = chatEntries.at(-1)?.id;
-    if (!lastEntryId) {
-      return;
-    }
-
-    const userMessage = this.renderedMessages.get(lastEntryId);
-    if (userMessage?.message.role !== 'user') {
-      return;
-    }
-
-    const chatId = this.state.chatId$.value;
+    const userMessage = this.renderedMessages.get(lastEntry.id)!;
     userMessage.markAsLast(false);
-    
+
     const newMessage = this.renderMessage(
       new Message(this, {
         role: 'assistant',
@@ -194,45 +205,39 @@ export class Messages extends Component<HTMLElement> {
       this.events.abort$,
     );
 
-    try {
-      for await (const messageChunk of messageChunks$) {
-        if (axios.isAxiosError(messageChunk)) {
-          throw messageChunk;
-        }
+    this.pool.subscribe(messageChunks$, (messageChunk) => {
+      content += messageChunk.delta.content ?? '';
+      reasoning += messageChunk.delta.reasoning_content ?? '';
 
-        content += messageChunk.delta.content ?? '';
-        reasoning += messageChunk.delta.reasoning_content ?? '';
+      if (content || reasoning) {
+        const shouldScrollToBottom = this.shouldScrollToBottom();
+        newMessage.update({
+          content,
+          reasoning_content: reasoning,
+        });
 
-        if (content || reasoning) {
-          const shouldScrollToBottom = this.shouldScrollToBottom();
-          newMessage.update({
-            content,
-            reasoning_content: reasoning,
-          });
-
-          if (shouldScrollToBottom) {
-            this.scrollToBottom();
-          }
+        if (shouldScrollToBottom) {
+          this.scrollToBottom();
         }
       }
+    });
 
-      await newMessage.store();
-      newMessage.markAsLast(true);
-      this.markStored(newMessage);
+    this.pool.subscribeDone(messageChunks$, async (error) => {
+      if (!error) {
+        await newMessage.store();
+        newMessage.markAsLast(true);
+        this.markStored(newMessage);
+      } else {
+        newMessage.destroy();
+        userMessage.markAsLast(true);
+      }
 
       this.state.loading$.notify(false);
-    } catch (e) {
-      if (axios.isCancel(e)) {
-        console.log('Request was aborted');
-      }
+    });
 
-      newMessage.destroy();
-      userMessage.markAsLast(true);
-
-      if (chatId === this.state.chatId$.value) {
-        this.state.loading$.notify(false);
-      }
-    }
+    this.events.abort$.subscribe(() =>
+      messageChunks$.done('Cancelled by system / user'),
+    );
   }
 
   view() {

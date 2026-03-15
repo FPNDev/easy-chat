@@ -7,6 +7,8 @@ type ChatEvents = {
   clear$: Observable<void>;
   abort$: Observable<void>;
   delete$: Observable<number>;
+  cancelEdit$: Observable<void>;
+  edit$: Observable<number>;
 };
 
 const ChatEventsStore = createStore<ChatEvents>(() => ({
@@ -15,6 +17,8 @@ const ChatEventsStore = createStore<ChatEvents>(() => ({
   clear$: new Observable() as ChatEvents['clear$'],
   sendToAssistant$: new Observable() as ChatEvents['sendToAssistant$'],
   delete$: new Observable() as ChatEvents['delete$'],
+  cancelEdit$: new Observable() as ChatEvents['cancelEdit$'],
+  edit$: new Observable() as ChatEvents['edit$'],
 }));
 
 type ChatState = {
