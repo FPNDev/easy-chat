@@ -3,9 +3,16 @@ import network from './network';
 import type { ChatMessage } from './types';
 import { Observable } from '../../local_modules/observable/observable';
 
-function processChat(messages: ChatMessage[], abort$: Observable<void>) {
+function processChat(
+  slot: number,
+  messages: ChatMessage[],
+  abort$: Observable<void>,
+) {
   const canceller = axios.CancelToken.source();
-  abort$.subscribe(() => canceller.cancel());
+  const unsubscribe = abort$.subscribe(() => {
+    unsubscribe();
+    canceller.cancel();
+  });
 
   const messageChunks$ = new Observable<
     { delta: ChatMessage },
@@ -20,6 +27,7 @@ function processChat(messages: ChatMessage[], abort$: Observable<void>) {
       model: import.meta.env.VITE_LLAMA_MODEL,
       messages,
       stream: true,
+      slot: slot,
     },
     cancelToken: canceller.token,
   })
