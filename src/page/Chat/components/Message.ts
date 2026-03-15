@@ -181,15 +181,17 @@ export class Message extends Component<HTMLElement> {
       'Type your message...',
       classes.messageInput,
     );
+    const textAreaView = editTextArea.ensureView();
+
     const saveBtn = html`<button>Save</button>` as HTMLButtonElement;
     const cancelBtn = html`<button>Cancel</button>` as HTMLButtonElement;
 
     const editLayout = html`<div>
-      ${editTextArea}
+      ${textAreaView}
       <div class=${classes.actions}>${saveBtn} ${cancelBtn}</div>
     </div>` as HTMLElement;
 
-    saveBtn.onclick = () => {
+    const saveMessage = () => {
       if (!editTextArea.value) {
         return;
       }
@@ -202,6 +204,9 @@ export class Message extends Component<HTMLElement> {
         this.events.edit$.notify(this._id!);
       });
     };
+
+    saveBtn.onclick = saveMessage;
+    this.pool.addEvent(textAreaView, 'submit', saveMessage);
 
     cancelBtn.onclick = () => {
       this.events.cancelEdit$.notify();
@@ -240,7 +245,7 @@ export class Message extends Component<HTMLElement> {
     deleteBtn.onclick = () => this.delete();
     buttons.push(deleteBtn);
 
-    if (this.message.role !== 'user') {
+    if (this.message.role === 'user') {
       this.resendBtn = html`<!---->`;
       this.renderResend();
       buttons.push(this.resendBtn);

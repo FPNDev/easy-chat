@@ -36,7 +36,7 @@ class Chat extends Component<HTMLElement> {
 
     return html`
       <div class="${classes.startPage}">
-        ${messagesSection.ensureView()}
+        ${messagesSection}
         <div class=${classes.footer}>
           ${this.renderTextArea()}
           <div class=${classes.buttons}>
@@ -117,7 +117,7 @@ class Chat extends Component<HTMLElement> {
       );
     });
 
-    return textArea.ensureView();
+    return view;
   }
 }
 
