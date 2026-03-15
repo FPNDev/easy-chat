@@ -1,0 +1,46 @@
+$editable-padding: 0.5rem 1.5rem;
+$general-padding: 0.5rem 0;
+
+.textfield {
+  border-radius: 1rem;
+  padding: $general-padding;
+  border: 1px solid rgba(black, 0.3);
+  position: relative;
+  overflow: hidden;
+  line-height: 1.4;
+  font-size: 1rem;
+  min-height: 3.4rem;
+  --field-padding: #{$editable-padding};
+  --white-space: pre-wrap;
+
+  &-placeholder {
+    pointer-events: none;
+    color: currentColor;
+    opacity: 0.5;
+    position: absolute;
+    left: 0;
+    white-space: nowrap;
+    width: 100%;
+    padding: $editable-padding;
+    padding: var(--field-padding);
+  }
+
+  &:focus-within {
+    border: 1px solid rgba(black, 0.6);
+  }
+
+  &-content {
+    height: 100%;
+    padding: $editable-padding;
+    padding: var(--field-padding);
+    overflow: auto;
+    overflow-x: hidden;
+  }
+
+  [contenteditable] {
+    min-height: 100%;
+    width: 100%;
+    white-space: pre-wrap;
+    white-space: var(--white-space);
+  }
+}

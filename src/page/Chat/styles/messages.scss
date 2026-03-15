@@ -1,0 +1,32 @@
+.messages {
+  padding: 1rem 1rem 0;
+}
+
+.message {
+  &-actions {
+    display: flex;
+    gap: 1rem;
+  }
+
+  &-content {
+    &.reasoning {
+      & > .message-loader {
+        margin: 1rem;
+        font-weight: bold;
+      }
+
+      color: #333;
+      font-style: italic;
+    }
+  }
+
+  &-user {
+    padding: 1rem 0;
+    font-weight: bold;
+    font-size: 1.5rem;
+  }
+
+  + & {
+    margin: 1rem 0 0;
+  }
+}

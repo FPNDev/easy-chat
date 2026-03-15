@@ -1,0 +1,27 @@
+@use './styles/messages.scss';
+
+.start-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  margin: auto 0 0; 
+  background: linear-gradient(to top, #fff calc(100% - 1.5rem), #fff0);
+  padding: 1.5rem 0.5rem;
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-between;
+  padding: 1.5rem 1rem 0;
+  z-index: 1;
+}
+
+.messageBox :global(.textfield-content) {
+  max-height: 25rem;
+}
