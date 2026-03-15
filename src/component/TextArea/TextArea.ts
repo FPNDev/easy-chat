@@ -50,6 +50,7 @@ export class TextArea extends Component<HTMLDivElement> {
     this.placeholderElement = html`
       <div class=${classes.textfieldPlaceholder}>${this.placeholderText}</div>
     ` as HTMLDivElement;
+    this.showOrHidePlaceholder();
 
     // prettier-ignore
     const textField = this.editableElement = html`<div contenteditable>${this._value}</div>` as HTMLDivElement;
