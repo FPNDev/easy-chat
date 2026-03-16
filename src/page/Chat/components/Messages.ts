@@ -106,10 +106,6 @@ export class Messages extends Component<HTMLElement> {
       Promise.all(removals).then(() => this.sendToAssistant());
     });
 
-    this.pool.subscribe(this.events.sendToAssistant$, () =>
-      this.sendToAssistant(),
-    );
-
     this.loadCurrentChat();
   }
 

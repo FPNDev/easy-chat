@@ -2,7 +2,6 @@ import { Observable } from '../../local_modules/observable/observable';
 import { createStore } from '../../local_modules/store';
 
 type ChatEvents = {
-  sendToAssistant$: Observable<void>;
   messageSubmitted$: Observable<string>;
   clear$: Observable<void>;
   abort$: Observable<void>;
@@ -15,7 +14,6 @@ const ChatEventsStore = createStore<ChatEvents>(() => ({
   abort$: new Observable() as ChatEvents['abort$'],
   messageSubmitted$: new Observable() as ChatEvents['messageSubmitted$'],
   clear$: new Observable() as ChatEvents['clear$'],
-  sendToAssistant$: new Observable() as ChatEvents['sendToAssistant$'],
   delete$: new Observable() as ChatEvents['delete$'],
   cancelEdit$: new Observable() as ChatEvents['cancelEdit$'],
   edit$: new Observable() as ChatEvents['edit$'],
