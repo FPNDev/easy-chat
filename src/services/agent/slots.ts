@@ -64,8 +64,6 @@ window.addEventListener('unload', () => {
   }
 });
 
-setInterval(() => console.log(openChats), 1000);
-
 const sendHeartBeatIntervals: Record<string, number> = {};
 const receiveHeartBeatIntervals: Record<string, number> = {};
 
