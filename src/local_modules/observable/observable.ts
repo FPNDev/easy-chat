@@ -91,5 +91,5 @@ Observable = extendObservableWithIterator(
   Observable,
 ) as unknown as ObservableConstructor;
 
-export { Observable };
-export type { BaseObservable, Observer };
+export { Observable, BaseObservable };
+export type { Observer };

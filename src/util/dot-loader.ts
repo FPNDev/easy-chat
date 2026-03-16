@@ -1,6 +1,6 @@
 import { text } from '../local_modules/util/html';
 
-export function dotLoaderFactory(initialDotCount = 3, prefix = '', className = '') {
+export function dotLoaderFactory(initialDotCount = 3, prefix = '') {
   const node = text();
 
   let dotCount: number;
