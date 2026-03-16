@@ -278,7 +278,7 @@ export class Messages extends Component<HTMLElement> {
       this.state.loading$.notify(false);
     });
 
-    this.events.abort$.subscribe(() =>
+    this.pool.subscribe(this.events.abort$, () =>
       messageChunks$.done('Cancelled by system / user'),
     );
   }
