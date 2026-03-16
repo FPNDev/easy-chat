@@ -1,10 +1,14 @@
 import network from './network';
+import type { SlotOccupied } from './types';
 
 const MAX_SLOTS = +import.meta.env.VITE_MAX_SLOTS || Infinity;
+const PERSISTENT_SLOTS_KEY =
+  import.meta.env.VITE_PERSISTENT_SLOTS_KEY || 'persistent_slots';
+
 const HEARTBEAT_SEND_INTERVAL = 2000;
 const HEARTBEAT_RECEIVE_INTERVAL = 5000;
 
-const openChats: (string | null)[] = [];
+const openChats: (string | undefined)[] = [];
 const localChats: string[] = [];
 
 const chatsChannel = new BroadcastChannel('chats');
@@ -28,8 +32,8 @@ chatsChannel.onmessage = (ev) => {
   switch (cmd) {
     case 'heartbeat':
       if (!openChats.includes(value)) {
-        const slotIdx = findFreeSlot();
-        if (slotIdx !== null) {
+        const { slot: slotIdx } = findFreeSlot(value);
+        if (slotIdx !== undefined && value !== null) {
           openChats[slotIdx] = value;
         }
       }
@@ -60,24 +64,73 @@ window.addEventListener('unload', () => {
   }
 });
 
-setInterval(() => console.log(openChats));
+setInterval(() => console.log(openChats), 1000);
 
 const sendHeartBeatIntervals: Record<string, number> = {};
 const receiveHeartBeatIntervals: Record<string, number> = {};
 
-function findFreeSlot() {
-  const slotIdx = openChats.indexOf(null);
-  return ~slotIdx
-    ? slotIdx
-    : openChats.length !== MAX_SLOTS
-      ? openChats.length
-      : null;
+function getPersistentSlots() {
+  const str = localStorage.getItem(PERSISTENT_SLOTS_KEY);
+  return str ? JSON.parse(str) : [];
+}
+
+function storePersistentSlots(persistentSlots: (string | undefined)[]) {
+  let hasChanges = false;
+  const newSlots: (string | undefined)[] = [...persistentSlots];
+  for (const slotIdx in openChats) {
+    if (
+      openChats[slotIdx] !== undefined &&
+      persistentSlots[slotIdx] !== openChats[slotIdx]
+    ) {
+      hasChanges = true;
+      newSlots[slotIdx] = openChats[slotIdx];
+    }
+  }
+  if (hasChanges) {
+    localStorage.setItem(PERSISTENT_SLOTS_KEY, JSON.stringify(newSlots));
+  }
+}
+
+function findFreeSlot(chatId: string): SlotOccupied {
+  const persistentSlots = getPersistentSlots();
+  const persistentIdx = persistentSlots.indexOf(chatId);
+  if (
+    ~persistentIdx &&
+    persistentIdx < MAX_SLOTS &&
+    (openChats[persistentIdx] === chatId ||
+      openChats[persistentIdx] === undefined)
+  ) {
+    return { slot: persistentIdx, reset: false };
+  }
+
+  let freeNonPersistentSlot = persistentSlots.indexOf(undefined);
+  if (!~freeNonPersistentSlot) {
+    freeNonPersistentSlot = persistentSlots.length;
+  }
+
+  if (
+    freeNonPersistentSlot < MAX_SLOTS &&
+    (openChats[persistentIdx] === chatId ||
+      openChats[persistentIdx] === undefined)
+  ) {
+    return { slot: freeNonPersistentSlot, reset: false };
+  }
+
+  const slotIdx = openChats.indexOf(undefined);
+  return {
+    slot: ~slotIdx
+      ? slotIdx
+      : openChats.length !== MAX_SLOTS
+        ? openChats.length
+        : undefined,
+    reset: true,
+  };
 }
 
 function removeExternalSlot(chatId: string) {
   const idx = openChats.indexOf(chatId);
   if (~idx) {
-    openChats[idx] = null;
+    openChats[idx] = undefined;
     clearInterval(receiveHeartBeatIntervals[chatId]);
   }
 }
@@ -89,23 +142,33 @@ async function ensureSlot(chatId: string) {
 
   const idx = openChats.indexOf(chatId);
   if (!~idx) {
-    let slotIdx = findFreeSlot();
+    let { slot: slotIdx, reset } = findFreeSlot(chatId);
+    let nextSlotIdx: number | undefined;
 
-    while (slotIdx !== null) {
+    while (slotIdx !== undefined && reset) {
       await eraseSlotCache(slotIdx);
-      const nextSlotIdx = findFreeSlot();
+      ({ slot: nextSlotIdx, reset } = findFreeSlot(chatId));
       if (nextSlotIdx === slotIdx) {
         break;
       }
       slotIdx = nextSlotIdx;
     }
-    
-    if (slotIdx === null) {
+
+    if (slotIdx === undefined) {
       return;
     }
 
+    const persistentSlots = getPersistentSlots();
+
     localChats.push(chatId);
+    if (openChats.length < slotIdx) {
+      for (let i = openChats.length; i <= slotIdx; i++) {
+        openChats[i] = undefined;
+      }
+    }
     openChats[slotIdx] = chatId;
+    storePersistentSlots(persistentSlots);
+
     startSendingHeartbeat(chatId);
 
     return slotIdx;
@@ -136,17 +199,14 @@ function freeSlot(chatId: string) {
     localChats.splice(idx, 1);
   }
   if (~globalIdx) {
-    openChats[globalIdx] = null;
+    openChats[globalIdx] = undefined;
   }
   clearInterval(sendHeartBeatIntervals[chatId]);
 }
 
 function eraseSlotCache(slotId: number) {
-  return network(`slots/${slotId}`, {
+  return network(`slots/${slotId}?action=erase`, {
     method: 'POST',
-    data: {
-      action: 'erase',
-    },
   });
 }
 

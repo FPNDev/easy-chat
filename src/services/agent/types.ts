@@ -3,3 +3,8 @@ export type ChatMessage = {
   content: string;
   reasoning_content: string;
 };
+
+export type SlotOccupied = {
+  slot: number | undefined;
+  reset: boolean;
+}

@@ -27,7 +27,7 @@ function processChat(
       model: import.meta.env.VITE_LLAMA_MODEL,
       messages,
       stream: true,
-      slot: slot,
+      id_slot: slot,
     },
     cancelToken: canceller.token,
   })
