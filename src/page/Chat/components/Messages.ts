@@ -71,11 +71,17 @@ export class Messages extends Component<HTMLElement> {
     this.pool.subscribe(this.events.delete$, (entryId) => {
       this.events.abort$.notify();
 
-      const removals: Promise<void>[] = [];
-      const renderedMessagesArr = Array.from(this.renderedMessages.values());
+      const renderedMessagesArr = Array.from(this.renderedMessages.keys());
+      if (renderedMessagesArr[0] === entryId) {
+        this.events.clear$.notify();
+        return;
+      }
+
       for (let i = renderedMessagesArr.length - 1; i >= 0; --i) {
-        const renderedMessage = renderedMessagesArr[i];
-        removals.push(renderedMessage.delete());
+        const renderedMessage = this.renderedMessages.get(
+          renderedMessagesArr[i],
+        )!;
+        renderedMessage.delete();
 
         if (renderedMessage.id === entryId) {
           break;
@@ -112,20 +118,24 @@ export class Messages extends Component<HTMLElement> {
   }
 
   onDisconnect(): void {
-    this.freeSlot();
+    this.freeSlot(this.state.chatId$.value!);
     this.events.abort$.notify();
     this.pool.clear();
   }
 
-  private freeSlot(chatId = this.state.chatId$.value!) {
+  private freeSlot(chatId?: string, freePersistentSlot?: boolean) {
     this.slotPromise?.then(() => {
-      freeSlot(chatId);
+      if (chatId !== undefined) {
+        freeSlot(chatId, freePersistentSlot);
+      }
     });
     this.slotPromise = undefined;
   }
 
   private clearChat() {
-    chatHistory.clear(this.state.chatId$.value!);
+    const chatId = this.state.chatId$.value!;
+    this.freeSlot(chatId, true);
+    chatHistory.clear(chatId);
     this.clearRenderedMessages();
   }
 

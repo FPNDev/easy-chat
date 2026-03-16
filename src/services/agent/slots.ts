@@ -190,7 +190,7 @@ function startReceivingHeartbeat(chatId: string) {
   }, HEARTBEAT_RECEIVE_INTERVAL);
 }
 
-function freeSlot(chatId: string) {
+function freeSlot(chatId: string, freePersistentSlot = false) {
   const idx = localChats.indexOf(chatId);
   const globalIdx = openChats.indexOf(chatId);
   if (~idx) {
@@ -198,6 +198,11 @@ function freeSlot(chatId: string) {
   }
   if (~globalIdx) {
     openChats[globalIdx] = undefined;
+  }
+  if (freePersistentSlot) {
+    const persistentSlots = getPersistentSlots();
+    persistentSlots[globalIdx] = undefined;
+    storePersistentSlots(persistentSlots);
   }
   clearInterval(sendHeartBeatIntervals[chatId]);
 }
