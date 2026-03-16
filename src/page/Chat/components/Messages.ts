@@ -52,7 +52,6 @@ export class Messages extends Component<HTMLElement> {
 
       messageComponent.store().then(() => {
         this.markStored(messageComponent);
-        messageComponent.markAsLast(true);
 
         if (role === 'user') {
           this.sendToAssistant();
@@ -71,8 +70,17 @@ export class Messages extends Component<HTMLElement> {
 
     this.pool.subscribe(this.events.delete$, (entryId) => {
       this.events.abort$.notify();
-      this.renderedMessages.delete(entryId);
-      this.markLastMessage();
+
+      const removals: Promise<void>[] = [];
+      const renderedMessagesArr = Array.from(this.renderedMessages.values());
+      for (let i = renderedMessagesArr.length - 1; i >= 0; --i) {
+        const renderedMessage = renderedMessagesArr[i];
+        removals.push(renderedMessage.delete());
+
+        if (renderedMessage.id === entryId) {
+          break;
+        }
+      }
     });
 
     this.pool.subscribe(this.events.edit$, (entryId) => {
@@ -134,7 +142,6 @@ export class Messages extends Component<HTMLElement> {
 
     if (message.id) {
       this.markStored(message);
-      this.markLastMessage();
     }
 
     if (existingNode) {
@@ -148,19 +155,6 @@ export class Messages extends Component<HTMLElement> {
     }
 
     return message;
-  }
-
-  private markLastMessage() {
-    const keys = Array.from(this.renderedMessages.keys());
-    const prevLast = keys.at(-2);
-    const curLast = keys.at(-1);
-
-    if (prevLast) {
-      this.renderedMessages.get(prevLast)!.markAsLast(false);
-    }
-    if (curLast) {
-      this.renderedMessages.get(curLast)?.markAsLast(true);
-    }
   }
 
   private shouldScrollToBottom() {
@@ -207,10 +201,19 @@ export class Messages extends Component<HTMLElement> {
       return;
     }
 
+    const userMessage = this.renderedMessages.get(lastEntry.id)!;
+    userMessage.removeActions();
+
     this.slotPromise ??= ensureSlot(chatId);
-    const slot = await this.slotPromise;
+    let slot;
+    try {
+      slot = await this.slotPromise;
+    } catch {
+      // will be handled by slot === undefined
+    }
 
     if (slot === undefined) {
+      userMessage.restoreActions();
       this.slotPromise = undefined;
       alert('No available slots for chat, try later');
       return;
@@ -220,11 +223,9 @@ export class Messages extends Component<HTMLElement> {
       // changed chat during slot resolution
       return;
     }
+    userMessage.restoreActions();
 
     this.state.loading$.notify(true);
-
-    const userMessage = this.renderedMessages.get(lastEntry.id)!;
-    userMessage.markAsLast(false);
 
     const newMessage = this.renderMessage(
       new Message(this, {
@@ -238,7 +239,7 @@ export class Messages extends Component<HTMLElement> {
     let reasoning = '';
 
     const messageChunks$ = processChat(
-      this.slot,
+      slot,
       chatEntries.map((m) => m.message),
       this.events.abort$,
     );
@@ -263,11 +264,9 @@ export class Messages extends Component<HTMLElement> {
     this.pool.subscribeDone(messageChunks$, async (error) => {
       if (!error) {
         await newMessage.store();
-        newMessage.markAsLast(true);
         this.markStored(newMessage);
       } else {
         newMessage.destroy();
-        userMessage.markAsLast(true);
       }
 
       this.state.loading$.notify(false);

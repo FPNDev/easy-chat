@@ -22,9 +22,6 @@ export class Message extends Component<HTMLElement> {
   private readonly loader = dotLoaderFactory(3, 'Thinking');
   private loaderWrapper?: HTMLElement;
 
-  private resendBtn?: Node;
-  private isLast = false;
-
   private editModeNode?: HTMLElement;
 
   get id() {
@@ -36,18 +33,12 @@ export class Message extends Component<HTMLElement> {
   private contentElement?: HTMLElement;
   private actionsElement?: HTMLElement;
 
+  private actionsPlaceholder?: Node;
+
   constructor(parent: Component, message: ChatMessage, id?: number) {
     super(parent);
     this.message = message;
     this._id = id;
-  }
-
-  markAsLast(isLast: boolean) {
-    if (this.isLast === isLast) {
-      return;
-    }
-    this.isLast = isLast;
-    this.renderResend();
   }
 
   store() {
@@ -77,9 +68,23 @@ export class Message extends Component<HTMLElement> {
     this.destroy();
 
     if (this._id) {
-      this.events.delete$.notify(this._id);
       return chatHistory.delete(this._id, this.state.chatId$.value!);
     }
+  }
+
+  removeActions() {
+    this.actionsPlaceholder = html`<!---->`;
+    this.actionsElement?.parentElement?.replaceChild(
+      this.actionsPlaceholder,
+      this.actionsElement,
+    );
+  }
+
+  restoreActions() {
+    this.actionsPlaceholder?.parentElement?.replaceChild(
+      this.actionsElement!,
+      this.actionsPlaceholder,
+    );
   }
 
   view(): HTMLElement {
@@ -150,24 +155,6 @@ export class Message extends Component<HTMLElement> {
     }
 
     return this.actionsElement;
-  }
-
-  private renderResend() {
-    if (!this.resendBtn || this.message.role !== 'user') {
-      return;
-    }
-
-    let newResend;
-
-    if (this.isLast) {
-      newResend = html`<a href="#">Resend</a>` as HTMLElement;
-      newResend.onclick = () => this.events.sendToAssistant$.notify();
-    } else {
-      newResend = html`<!---->`;
-    }
-
-    this.resendBtn?.parentElement?.replaceChild(newResend, this.resendBtn);
-    this.resendBtn = newResend;
   }
 
   private startEditing() {
@@ -242,13 +229,13 @@ export class Message extends Component<HTMLElement> {
     const buttons = [];
 
     const deleteBtn = html`<a href="#">Delete</a>` as HTMLElement;
-    deleteBtn.onclick = () => this.delete();
+    deleteBtn.onclick = () => this.events.delete$.notify(this._id!);
     buttons.push(deleteBtn);
 
     if (this.message.role === 'user') {
-      this.resendBtn = html`<!---->`;
-      this.renderResend();
-      buttons.push(this.resendBtn);
+      const resendBtn = html`<a href="#">Resend</a>` as HTMLElement;
+      resendBtn.onclick = () => this.events.edit$.notify(this._id!);
+      buttons.push(resendBtn);
     }
 
     if (this.message.role !== 'assistant') {
