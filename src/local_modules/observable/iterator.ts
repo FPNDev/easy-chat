@@ -1,7 +1,7 @@
 import { type BaseObservable } from './observable';
 
 function extendObservableWithIterator(
-  ObservableClass: new <T, D>() => BaseObservable<T, D>
+  ObservableClass: new <T, D = void>() => BaseObservable<T, D>
 ) {
   return class IteratorObservable<T, D> extends ObservableClass<T, D> {
     private sendToIterators?: (iteratorRes: IteratorResult<T, D>) => void;

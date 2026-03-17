@@ -80,7 +80,7 @@ type Observable<T, D = void> = BaseObservable<T, D> & {
 };
 
 type ObservableConstructor = {
-  new <T, D>(saveValue?: boolean): Observable<T, D>;
+  new <T, D = void>(saveValue?: boolean): Observable<T, D>;
 };
 
 let Observable = BaseObservable as unknown as ObservableConstructor;

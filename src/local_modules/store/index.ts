@@ -2,7 +2,7 @@ import type { Component } from '../component/component';
 
 type Store<T> = {
   initialValue: () => T;
-}
+};
 
 const stores = new Map<Component, Map<Store<unknown>, unknown>>();
 
@@ -19,11 +19,14 @@ export function attachStore<T>(component: Component, store: Store<T>) {
 
   const storeValue = store.initialValue();
   storesMap.set(store, storeValue);
-  
+
   return storeValue;
 }
 
-export function useStore<T>(component: Component, storeIdentifier: Store<T>): T {
+export function useStore<T>(
+  component: Component,
+  storeIdentifier: Store<T>,
+): T {
   do {
     const storesMap = stores.get(component);
     if (storesMap) {
@@ -31,6 +34,6 @@ export function useStore<T>(component: Component, storeIdentifier: Store<T>): T 
       if (store) return store;
     }
   } while ((component = component.parent!));
-  
+
   throw new Error('Store not found');
 }

@@ -12,7 +12,7 @@ type PipesArray<T, POut> =
   | [
       Pipe<T, unknown>,
       ...BivariantPipe<unknown, unknown>[],
-      BivariantPipe<unknown, POut>
+      BivariantPipe<unknown, POut>,
     ];
 
 function joinPipes<PIn, POut>(pipes: PipesArray<PIn, POut>): Pipe<PIn, POut> {
@@ -47,19 +47,19 @@ function joinPipes<PIn, POut>(pipes: PipesArray<PIn, POut>): Pipe<PIn, POut> {
 }
 
 function extendObservableWithPipes(
-  ObservableClass: new <T>() => BaseObservable<T>
+  ObservableClass: new <T, D>() => BaseObservable<T, D>,
 ) {
-  class PipedObservable<T> extends ObservableClass<T> {
-    pipe(pipes: []): PipedObservable<T>;
-    pipe<POut>(pipes: PipesArray<T, POut>): PipedObservable<POut>;
+  class PipedObservable<T, D = void> extends ObservableClass<T, D> {
+    pipe(pipes: []): PipedObservable<T, D>;
+    pipe<POut>(pipes: PipesArray<T, POut>): PipedObservable<POut, D>;
     pipe<POut>(
-      pipes: PipesArray<T, POut> | []
-    ): PipedObservable<POut> | PipedObservable<T> {
+      pipes: PipesArray<T, POut> | [],
+    ): PipedObservable<POut, D> | PipedObservable<T, D> {
       if (pipes.length === 0 || this.closed) {
         return this;
       }
       const joinedPipe = joinPipes(pipes);
-      const obs = new PipedObservable<POut>();
+      const obs = new PipedObservable<POut, D>();
       this.subscribe((data: T) => {
         const result = joinedPipe(data);
         if (result instanceof Promise) {
@@ -72,8 +72,8 @@ function extendObservableWithPipes(
           obs.notify(result as POut);
         }
       });
-      this.subscribeDone(() => {
-        obs.done();
+      this.subscribeDone((saveValue) => {
+        obs.done(saveValue);
       });
 
       return obs;
