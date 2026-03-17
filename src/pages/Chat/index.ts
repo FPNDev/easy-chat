@@ -15,8 +15,8 @@ class Chat extends Component<HTMLElement> {
   private events = attachStore(this, ChatEventsStore);
   private state = attachStore(this, ChatStateStore);
 
-  constructor() {
-    super();
+  constructor(parent: Component) {
+    super(parent);
 
     router.route(ChatRoute, () => {
       const params = router.getParams();

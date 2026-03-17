@@ -1,0 +1,18 @@
+.layout {
+  display: flex;
+  height: 100%;
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    flex: 10rem 0 0;
+    gap: 1rem;
+    padding: 1rem;
+
+    &-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin: 1rem 0;
+    }
+  }
+}

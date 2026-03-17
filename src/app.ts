@@ -10,7 +10,7 @@ export class App extends Component<HTMLElement> {
     super();
 
     router.route(ChatRoute, () =>
-      render(this, moduleDefault(import('./page/Chat/index'))),
+      render(this, moduleDefault(import('./layouts/ChatsLayout'))),
     );
   }
 

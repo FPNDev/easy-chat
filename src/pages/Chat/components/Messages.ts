@@ -1,3 +1,4 @@
+import { ChatsLayoutStore } from '../../../layouts/ChatsLayout/stores';
 import { Component } from '../../../local_modules/component/component';
 import { useStore } from '../../../local_modules/store';
 import { poolWithEvents } from '../../../local_modules/subscription/events';
@@ -5,7 +6,7 @@ import { html } from '../../../local_modules/util/html';
 import { processChat } from '../../../services/agent';
 import { ensureSlot, freeSlot } from '../../../services/agent/slots';
 import chatHistory from '../../../services/db/chat-history';
-import { type ChatEvents, ChatEventsStore, ChatStateStore } from '../stores';
+import { ChatEventsStore, ChatStateStore } from '../stores';
 import classes from '../style.module.scss';
 import { Message } from './Message';
 
@@ -13,7 +14,9 @@ export class Messages extends Component<HTMLElement> {
   private pool = poolWithEvents();
   private slotPromise?: Promise<number | undefined>;
 
-  private events = useStore<ChatEvents>(this, ChatEventsStore);
+  private layoutStore = useStore(this, ChatsLayoutStore);
+
+  private events = useStore(this, ChatEventsStore);
   private state = useStore(this, ChatStateStore);
 
   private renderedMessages = new Map<number, Message>();
@@ -32,7 +35,7 @@ export class Messages extends Component<HTMLElement> {
       }
     });
 
-    this.pool.subscribe(this.events.messageSubmitted$, (role) => {
+    this.pool.subscribe(this.events.messageSubmitted$, async (role) => {
       if (this.state.loading$.value) {
         return;
       }
@@ -50,7 +53,13 @@ export class Messages extends Component<HTMLElement> {
         }),
       );
 
-      messageComponent.store().then(() => {
+      const chatId = this.state.chatId$.value!;
+      messageComponent.store().then(async () => {
+        const isFirstMessage = (await chatHistory.getChat(chatId)).length === 1;
+        if (isFirstMessage) {
+          this.layoutStore.addChat$.notify(chatId);
+        }
+
         this.markStored(messageComponent);
 
         if (role === 'user') {

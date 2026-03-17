@@ -4,7 +4,7 @@ const contentChild = Symbol();
 const parent = Symbol();
 
 type ComponentConstructor<T extends Node = Node> = {
-  new (parent?: Component<T>): Component<T>;
+  new (parent: Component<T>): Component<T>;
 };
 
 abstract class Component<T extends Node = Node> {
@@ -40,14 +40,20 @@ abstract class Component<T extends Node = Node> {
     return (this[privateNode] ??= this.view());
   }
 
-  setContentComponent(contentComponent: ComponentConstructor) {
+  setContentComponent(
+    contentComponent: ComponentConstructor,
+    replaceWith?: Node,
+  ) {
     if (this[contentChild]?.constructor !== contentComponent) {
       if (this[contentChild]) {
+        if (replaceWith) {
+          const contentView = this[contentChild].ensureView();
+          contentView.parentElement?.replaceChild(replaceWith, contentView);
+        }
         this[contentChild].destroy();
       }
 
       this[contentChild] = new contentComponent(this);
-      this.attach([this[contentChild]]);
     }
 
     return this[contentChild].ensureView();

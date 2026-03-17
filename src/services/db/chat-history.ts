@@ -69,6 +69,34 @@ async function getChat(chatId: string) {
   return [...currentMessages];
 }
 
+async function getChats() {
+  const objectStore = await getObjectStore();
+  const allHistory = await dbRequestToPromise<ChatMessageEntry[]>(
+    objectStore.getAll(),
+  );
+
+  const chatIds = new Set<string>();
+  const chatMessages = new Map<string, ChatMessageEntry[]>();
+
+  for (const msg of allHistory) {
+    if (!chatMessagesMap$.get(msg.chat_id)) {
+      const newMessages = chatMessages.get(msg.chat_id) ?? [];
+      if (!newMessages.length) {
+        chatMessages.set(msg.chat_id, newMessages);
+      }
+      newMessages.push(msg);
+    }
+
+    chatIds.add(msg.chat_id);
+  }
+
+  for (const [chatId, messages] of chatMessages.entries()) {
+    chatMessagesMap$.set(chatId, Promise.resolve(messages));
+  }
+
+  return Array.from(chatIds);
+}
+
 async function clear(chatId: string) {
   const objectStore = await getObjectStore();
   await dbRequestToPromise(objectStore.clear());
@@ -81,6 +109,7 @@ async function clear(chatId: string) {
 
 export default {
   put,
+  getChats,
   getChat,
   delete: deleteEntry,
   clear,
