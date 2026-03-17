@@ -22,7 +22,7 @@ const routes: Route[] = [
 ] as const;
 
 const router = setupRouter(routes);
-document.body.appendChild(new App(router).ensureView());
+document.body.appendChild(new App().ensureView());
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (window as any).router = router;
