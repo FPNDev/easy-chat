@@ -16,6 +16,8 @@ class ChatsLayout extends Component<HTMLElement> {
   private contentNode!: Node;
   private sidebar!: HTMLElement;
 
+  private renderedChats = new Map<string, Node>();
+
   constructor(parent: Component) {
     super(parent);
 
@@ -25,6 +27,12 @@ class ChatsLayout extends Component<HTMLElement> {
     this.pool.subscribe(store.addChat$, (chatId: string) => {
       this.loading$.then(() => {
         this.addChatToSidebar(chatId);
+      });
+    });
+
+    this.pool.subscribe(store.removeChat$, (chatId: string) => {
+      this.loading$.then(() => {
+        this.removeChatFromSidebar(chatId);
       });
     });
 
@@ -51,8 +59,17 @@ class ChatsLayout extends Component<HTMLElement> {
       ev.preventDefault();
       router.go(`/chat/${chatId}`);
     };
-
+  
+    this.renderedChats.set(chatId, linkElement);
     this.sidebar.appendChild(linkElement);
+  }
+
+  removeChatFromSidebar(chatId: string) {
+    const element = this.renderedChats.get(chatId);
+    if (element) {
+      this.sidebar.removeChild(element);
+      this.renderedChats.delete(chatId);
+    }
   }
 
   renderSidebar() {

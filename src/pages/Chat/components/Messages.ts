@@ -69,6 +69,8 @@ export class Messages extends Component<HTMLElement> {
     });
 
     this.pool.subscribe(this.events.clear$, () => {
+      this.layoutStore.removeChat$.notify(this.state.chatId$.value!);
+
       this.events.abort$.notify();
       this.clearChat();
     });
